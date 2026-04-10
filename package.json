@@ -1,0 +1,7 @@
+{
+  "name": "claude-skills",
+  "version": "0.1.0",
+  "description": "Custom Claude Code skills organized by purpose",
+  "private": true,
+  "author": "Derek"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "claude-skills",
+  "description": "Custom Claude Code skills organized by purpose. Includes adversarial code review pipeline with bash-enforced convergence loops.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Derek"
+  },
+  "keywords": ["code-review", "simplify", "adversarial", "pipeline"]
+}
