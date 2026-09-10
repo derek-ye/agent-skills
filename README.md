@@ -28,3 +28,5 @@ The existing review-loop skills invoke Claude-based scripts; linking them into C
 
 - `work-priority-summary`: concise work inventory with overall summary, project relevance, dependencies and attention recommendations.
 - `review-pipeline`, `code-review-loop`, `simplify-loop`: existing Claude-backed review workflows.
+
+- `ponytail`: upstream minimal-code skill by DietrichGebert; source and MIT license in its directory.
