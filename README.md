@@ -30,3 +30,4 @@ The existing review-loop skills invoke Claude-based scripts; linking them into C
 - `review-pipeline`, `code-review-loop`, `simplify-loop`: existing Claude-backed review workflows.
 
 - `ponytail`: upstream minimal-code skill by DietrichGebert; source and MIT license in its directory.
+- `update-weekly-todos`: maintain concise Obsidian weekly action lists with ordering and context links.
