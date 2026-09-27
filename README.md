@@ -31,3 +31,4 @@ The existing review-loop skills invoke Claude-based scripts; linking them into C
 
 - `ponytail`: upstream minimal-code skill by DietrichGebert; source and MIT license in its directory.
 - `update-weekly-todos`: maintain concise Obsidian weekly action lists with ordering and context links.
+- `intentional-ui-copy`: remove eyebrow text and meaningless descriptions from product interfaces.
