@@ -26,6 +26,8 @@ The existing review-loop skills invoke Claude-based scripts; linking them into C
 
 ## Skills
 
+- `create-skill`: deeply interview Derek and codify technical workflows into portable skills with verification evidence and independent review.
+
 - `work-priority-summary`: concise work inventory with overall summary, project relevance, dependencies and attention recommendations.
 - `review-pipeline`, `code-review-loop`, `simplify-loop`: existing Claude-backed review workflows.
 
