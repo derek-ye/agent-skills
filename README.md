@@ -33,4 +33,7 @@ The existing review-loop skills invoke Claude-based scripts; linking them into C
 
 - `ponytail`: upstream minimal-code skill by DietrichGebert; source and MIT license in its directory.
 - `update-weekly-todos`: maintain concise Obsidian weekly action lists with ordering and context links.
-- `intentional-ui-copy`: remove eyebrow text and meaningless descriptions from product interfaces.
+- `derek-design-preferences`: apply Derek’s UI copy and typography preferences, including useful text, native fonts, and a maximum font weight of 600.
+- `test-audit`: OpenClaw test authoring gates and audits for low-value or implementation-coupled tests; upstream source, MIT license, and repository-specific dependency notes in its directory.
+
+- `principle-test-behavior-not-implementation`: pstack’s behavior-focused testing principle from cursor/plugins (Lauren Tan); rejects tautological, mock-only, and fixture-only assertions.
