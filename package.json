@@ -1,7 +1,7 @@
 {
   "name": "claude-skills",
-  "version": "0.1.0",
-  "description": "Custom Claude Code skills organized by purpose",
+  "version": "0.2.0",
+  "description": "Portable engineering skills with evidence-based verification and orchestrated review",
   "private": true,
   "author": "Derek"
 }

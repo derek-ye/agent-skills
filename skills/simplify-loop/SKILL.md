@@ -1,19 +1,15 @@
 ---
 name: simplify-loop
-description: Adversarial simplify loop — iteratively simplifies changed files with an Editor agent checked by a Reviewer agent. Bash-enforced max 3 epochs.
-allowed-tools: Bash
+description: Compatibility entry point for a focused simplification pass using Derek's code preferences. Use for cleanup requests; no longer launches a Claude CLI shell loop.
 ---
 
-Run the simplify loop script. This will iteratively simplify changed files vs master using adversarial Editor + Reviewer agents.
+# Simplify changed code
 
-Find and run `review-pipeline/scripts/simplify-loop.sh` relative to this plugin's installation directory. The plugin root is two levels up from this SKILL.md file.
+Use [derek-code-pass](../derek-code-pass/SKILL.md) on the requested scope and run
+checks appropriate to actual edits. No worthwhile edits is a valid result. Do not
+repeatedly rewrite code to satisfy stylistic reviewer preferences.
 
-Run it with Bash. Example:
-```bash
-~/agents/claude-skills/review-pipeline/scripts/simplify-loop.sh
-```
-
-Environment variables you can set before running:
-- `MAX_EPOCHS` (default: 3) — maximum loop iterations
-- `BASE_BRANCH` (default: master) — branch to diff against
-- `MAX_TURNS` (default: 30) — max agentic turns per call
+If review was also requested, continue through
+[code-review-loop](../code-review-loop/SKILL.md). Review the full candidate even if
+simplification made no edits; an empty unstaged diff does not mean an empty branch
+diff. Report cleanup and verification separately from review status.

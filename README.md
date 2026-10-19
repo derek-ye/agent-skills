@@ -2,38 +2,76 @@
 
 Canonical repository: https://github.com/derek-ye/agent-skills
 
-Edit reusable skills in `skills/` here. Local agent installations should link to this checkout instead of maintaining independent copies. Git pull/push synchronizes the checkout with GitHub; symlinks do not fetch remote changes.
+Edit reusable skills in `skills/` here. Local installations should link to this
+checkout instead of maintaining independent copies. Pull/push synchronizes Git;
+symlinks do not fetch remote changes.
 
-## Codex
+## Development workflow
 
-Codex supports individual skill-directory symlinks under `~/.agents/skills`. For a new skill, run this from the repository root, replacing `skill-name`:
+- **Start-to-finish work:** `dev-workflow` turns intent into a behavior contract,
+  implementation slices, verification, independent review, and a PR briefing.
+- **Already implemented:** `review-pipeline` applies the code pass, runs project
+  verification, and delegates to `code-review-loop`.
+- **Review only:** `code-review-loop` uses independent correctness/impact and
+  structure/taste reviewers with an orchestrator. It adjudicates evidence rather
+  than waiting for unanimity and defaults to three rounds.
+- **Atoms:** `verify-atoms` provides real launch/check commands, a feature map,
+  and an optional Playwright smoke driver. Mock checks do not prove live auth or
+  backend persistence.
+- **Another project:** `create-project-verification` creates its grounded recipe.
+
+Outcomes are `PASS`, `NEEDS_FIX`, `INCONCLUSIVE`, or `LIMIT_REACHED`, tied to the
+reviewed candidate. None grants permission to merge or deploy. The workflow uses
+the current agent runtime; it does not spawn Claude CLI subprocesses. If independent
+review is unavailable, it reports that limitation instead of claiming parity.
+
+The old `review-pipeline/scripts/*.sh` and prompts have been removed. Invoke a skill
+in your agent rather than running those paths. `simplify-loop` remains a compatibility
+skill for a single focused `derek-code-pass`; it no longer runs a shell loop.
+See [workflow design](docs/review-pipeline-design.md) for roles and evaluation.
+
+## Installation
+
+For Codex, link each wanted skill directory under `~/.agents/skills`; for Claude
+Code use `~/.claude/skills`. From this repo, replacing `skill-name`:
 
 ```sh
+mkdir -p "$HOME/.agents/skills"
 ln -s "$PWD/skills/skill-name" "$HOME/.agents/skills/skill-name"
 ```
 
-If the destination already exists, inspect it first; preserve independent edits rather than overwriting it. Keep built-in skills and unrelated installed skills in their existing locations.
+Inspect existing destinations first and preserve independent edits. Keep built-in
+and unrelated skills in place. Link the referenced sibling skills too, including
+`derek-code-pass`, `derek-design-preferences`, and `pr-description-style`. A linked
+skill's relative resources resolve from its real directory. Installed clients may
+need a new session to discover new skills. The Claude plugin manifest also exposes
+this repository's skill collection to clients supporting that plugin format.
 
-## Claude Code
+## Other skills
 
-The same skill directory can be linked under `~/.claude/skills`:
+- `before-after`: explain all material changes in a PR through baseline/candidate
+  behavior, impact, edge cases and unintended effects; also supports event walkthroughs.
+
+- `create-skill`: interview and codify technical workflows with evidence and review.
+- `derek-code-pass`: scoped structure, comment, and behavioral-test preferences.
+- `derek-design-preferences`: UI copy and typography preferences.
+- `pr-description-style`: concise user context, matched screenshots, and evidence.
+- `work-priority-summary`: work inventory, dependencies, and attention recommendations.
+- `update-weekly-todos`: maintain concise Obsidian action lists.
+- `ponytail`: upstream minimal-code skill; provenance and license in its directory.
+- `test-audit`: imported OpenClaw testing workflow; requires its project-specific
+  tools/skills and is not a generic prerequisite for every project.
+- `principle-test-behavior-not-implementation`: imported pstack testing principle;
+  provenance and license in its directory.
+
+## Checks
 
 ```sh
-ln -s "$PWD/skills/skill-name" "$HOME/.claude/skills/skill-name"
+python3 -m unittest discover -s tests -v
+python3 skills/dev-workflow/scripts/review_scope.py --repo . --base main
 ```
 
-The existing review-loop skills invoke Claude-based scripts; linking them into Codex does not convert their execution engine to Codex. Resolve script paths from this repository's real checkout, not the symlink location. Historical `~/agents/claude-skills` examples refer to the old checkout.
-
-## Skills
-
-- `create-skill`: deeply interview Derek and codify technical workflows into portable skills with verification evidence and independent review.
-
-- `work-priority-summary`: concise work inventory with overall summary, project relevance, dependencies and attention recommendations.
-- `review-pipeline`, `code-review-loop`, `simplify-loop`: existing Claude-backed review workflows.
-
-- `ponytail`: upstream minimal-code skill by DietrichGebert; source and MIT license in its directory.
-- `update-weekly-todos`: maintain concise Obsidian weekly action lists with ordering and context links.
-- `derek-design-preferences`: apply Derek’s UI copy and typography preferences, including useful text, native fonts, and a maximum font weight of 600.
-- `test-audit`: OpenClaw test authoring gates and audits for low-value or implementation-coupled tests; upstream source, MIT license, and repository-specific dependency notes in its directory.
-
-- `principle-test-behavior-not-implementation`: pstack’s behavior-focused testing principle from cursor/plugins (Lauren Tan); rejects tautological, mock-only, and fixture-only assertions.
+The tests exercise git scope and evidence identity, including committed deletions,
+tracked/untracked changes, renames, and an advancing base. They do not establish
+that a language-model reviewer finds every bug. See the design's behavioral cases
+and recorded validation for the distinction.

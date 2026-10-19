@@ -1,23 +1,26 @@
 ---
 name: review-pipeline
-description: Full adversarial review pipeline — runs simplify-loop then code-review-loop sequentially. Bash-enforced convergence with max 3 epochs per phase.
-allowed-tools: Bash
+description: Prepare an existing change for review using Derek's code pass, project checks, and independent review. Use after implementation; use dev-workflow for start-to-finish work.
 ---
 
-Run the full review pipeline. This runs two phases sequentially:
-1. **Simplify loop** — iteratively simplifies changed files
-2. **Code review loop** — iteratively reviews and fixes architectural issues
+# Review pipeline
 
-Find and run `review-pipeline/scripts/review-pipeline.sh` relative to this plugin's installation directory. The plugin root is two levels up from this SKILL.md file.
+This is a skill workflow, not a Claude CLI script. Read repository instructions;
+establish intended behavior, target base, full patch, and required checks.
 
-Run it with Bash. Example:
-```bash
-~/agents/claude-skills/review-pipeline/scripts/review-pipeline.sh
-```
+1. Apply [derek-code-pass](../derek-code-pass/SKILL.md) for worthwhile scoped
+   improvements. No cleanup edits is valid; continue with review anyway.
+2. Run required project checks and its verification recipe. For Atoms use
+   [verify-atoms](../verify-atoms/SKILL.md). For other projects discover commands
+   from configuration/CI and actual entry points; use
+   [create-project-verification](../create-project-verification/SKILL.md) if a
+   reusable recipe is needed. Preserve failures and unavailable checks.
+3. Run [code-review-loop](../code-review-loop/SKILL.md). It owns reviewer roles,
+   triage, bounded fixes/rechecks, and the PASS / NEEDS_FIX / INCONCLUSIVE /
+   LIMIT_REACHED outcome. Include deletion-only and committed-only changes.
+   Do not start a second nested loop.
+4. Prepare or refresh [PR context](../pr-description-style/SKILL.md) from the final
+   patch and evidence. Report material risks, gaps, and relevant recovery steps.
 
-Environment variables you can set before running:
-- `MAX_EPOCHS` (default: 3) — maximum loop iterations per phase
-- `BASE_BRANCH` (default: master) — branch to diff against
-- `MAX_TURNS` (default: 30) — max agentic turns per call
-
-After the pipeline completes, review all changes with `git diff master`.
+Preserve existing authorization for edits and external actions. The outcome applies
+only to the reviewed candidate and is never an automatic merge instruction.

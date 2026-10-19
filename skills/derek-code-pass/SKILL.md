@@ -23,8 +23,10 @@ that the skill ran.
 
 ## Tests
 
-- Aim for the smallest suite that protects distinct behaviors and failures;
-  use 80/20 as a critique, not a test-count or coverage quota.
+- Run an explicit 80/20 test-value pass on added or changed tests: find the
+  smallest set that protects the important behaviors and failures. Aggressively
+  seek redundant cases, setup, and assertions; use 80/20 as a reduction challenge,
+  not an automatic deletion or coverage quota.
 - Before adding or keeping a test, inspect relevant existing coverage. Remove
   tests that repeat behavior already verified elsewhere without protecting a
   distinct contract, integration, configuration, or failure mode. Keep tests
@@ -41,6 +43,11 @@ that the skill ran.
   caller uses that behavior.
 - Prefer observable results over internal call sequences. Remove redundant
   cases, setup, and machinery; name the remaining coverage that justifies a cut.
+- Report keep/cut/consolidate decisions with representative tests, the distinct
+  failure each retained test catches, and the remaining proof that justifies a
+  cut. If no worthwhile cuts are found, say why; passing tests alone do not prove
+  the suite is minimal. Broader audits can inspect existing coverage without
+  silently expanding the current PR.
 - Use names that make actors, ownership, and expected outcomes clear.
 
 ## Behavior

@@ -5,19 +5,27 @@ description: Write or refresh PR titles, descriptions, and screenshots in Derek�
 
 # PR description style
 
-Make the current change easy to understand and review in one read.
+Make the current change easy to understand and review in one read. Use current
+behavior → impact → improvement for PR context and material review issues. The
+same concise explanation belongs in the chat handoff after review; do not leave
+it only in an artifact or link. One or two sentences can cover the whole chain.
 
 - **Content**
 	- **Context**
 		- Build a small context snippet around these points, in order:
 		- **Before:** What did the user encounter before the change? Ground it in their task or the UI they use; name a click or other interaction only when it helps explain the problem.
-		- **Why:** Explain the user problem or the improvement we want.
+		- **Impact:** Explain why that behavior matters to the user or maintainer.
+		- **Improvement:** State what the change makes better. Keep proposed outcomes distinct from changes already implemented and verified.
 		- **How, when useful:** Explain the approach only when it helps the reviewer understand a meaningful choice. Usually omit implementation details for small PRs.
 		- Keep a brief reassurance when it resolves a likely reviewer concern, such as whether existing content remains readable. Include surfaces and input methods only when those distinctions matter to the change.
 	- **Links and evidence**
 		- Include known Slack discussion and Linear ticket links next to the context they support or on a short line below it. Retain links that explain the product decision or requirement.
 		- Do not invent references, business context, or approvals. Links supplement the explanation; they do not replace it.
 		- Summarize verification with checks run, outcomes, and material gaps. Distinguish observed results from checks reported by an earlier author.
+
+- **Risk and delivery evidence**
+	- For workflow/review results, include the explicit outcome, what could break, important unverified assumptions, and how to disable or revert when relevant. Keep this proportional to the change; a small copy edit does not need a risk essay.
+	- Tie verification to the final candidate. Summarize findings and unresolved decisions; link detailed evidence rather than pasting logs. An earlier passing result does not cover later edits automatically.
 
 - **Writing style**
 	- **Language and length**

@@ -1,357 +1,86 @@
-# Review Pipeline Plugin — Design Spec
-
-## Context
-
-Currently, running code simplification and code review in Claude Code is a manual, sequential process: invoke `/simplify`, review the output, invoke a code reviewer, fix findings, re-review. This is repetitive and interruptible. The goal is to automate this into a self-correcting loop with adversarial prompting that converges on clean code, packaged as a standalone Claude Code plugin that can be shared across projects.
-
-**Key design decisions from brainstorming:**
-- Two-agent adversarial architecture (Editor + Reviewer) — not three. The separation that matters is "the thing that changes code" vs "the thing that judges changes."
-- Bash-enforced loops — the agent cannot control iteration count. Bash `for` loops guarantee max epochs.
-- Adversarial prompts create tension without adding agents — the Editor knows it will be checked, the Reviewer knows it will be evaluated on calibration.
-- Three composable skills: `/simplify-loop`, `/code-review-loop`, `/review-pipeline` (runs both).
-
-## Repository Structure
-
-```
-claude-review-pipeline/
-├── .claude-plugin/
-│   └── plugin.json                # Plugin manifest
-├── package.json                   # Node metadata
-├── README.md
-├── skills/
-│   ├── simplify-loop/
-│   │   └── SKILL.md               # Thin wrapper → invokes scripts/simplify-loop.sh
-│   ├── code-review-loop/
-│   │   └── SKILL.md               # Thin wrapper → invokes scripts/code-review-loop.sh
-│   └── review-pipeline/
-│       └── SKILL.md               # Thin wrapper → invokes scripts/review-pipeline.sh
-├── scripts/
-│   ├── simplify-loop.sh           # Bash-enforced simplify loop
-│   ├── code-review-loop.sh        # Bash-enforced code review loop
-│   └── review-pipeline.sh         # Orchestrator: runs both sequentially
-└── prompts/
-    ├── editor-simplify.md          # System prompt: simplify editor agent
-    ├── reviewer-simplify.md        # System prompt: simplify reviewer agent
-    ├── editor-review.md            # System prompt: code review editor agent
-    └── reviewer-review.md          # System prompt: code review reviewer agent
-```
-
-## Skills
-
-### `/simplify-loop`
-
-**Purpose:** Iteratively simplify changed files until the reviewer says they're clean.
-
-**Invocation:** `/simplify-loop` in Claude Code, or `scripts/simplify-loop.sh` directly.
-
-**SKILL.md:** Thin wrapper that tells Claude to run `scripts/simplify-loop.sh` via Bash tool.
-
-### `/code-review-loop`
-
-**Purpose:** Iteratively review and fix architectural/best-practices issues until clean.
-
-**Invocation:** `/code-review-loop` in Claude Code, or `scripts/code-review-loop.sh` directly.
-
-**SKILL.md:** Thin wrapper that tells Claude to run `scripts/code-review-loop.sh` via Bash tool.
-
-### `/review-pipeline`
-
-**Purpose:** Run simplify-loop then code-review-loop sequentially.
-
-**Invocation:** `/review-pipeline` in Claude Code, or `scripts/review-pipeline.sh` directly.
-
-**SKILL.md:** Thin wrapper that tells Claude to run `scripts/review-pipeline.sh` via Bash tool.
-
-## Scripts
-
-### `scripts/simplify-loop.sh`
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
-MAX_EPOCHS=${MAX_EPOCHS:-3}
-BASE_BRANCH=${BASE_BRANCH:-master}
-BUDGET_PER_CALL=${BUDGET_PER_CALL:-2.00}
-MAX_TURNS=${MAX_TURNS:-15}
-
-CHANGED_FILES=$(git diff "$BASE_BRANCH" --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|css)$' || true)
-
-if [ -z "$CHANGED_FILES" ]; then
-    echo "No changed files vs $BASE_BRANCH. Nothing to simplify."
-    exit 0
-fi
-
-echo "=== Simplify Loop ==="
-echo "Changed files: $(echo "$CHANGED_FILES" | wc -l | tr -d ' ')"
-echo "Max epochs: $MAX_EPOCHS"
-
-for epoch in $(seq 1 "$MAX_EPOCHS"); do
-    echo ""
-    echo "--- Epoch $epoch/$MAX_EPOCHS ---"
-
-    # Editor pass: simplify the changed files
-    echo "[Editor] Simplifying..."
-    claude -p \
-        --effort max \
-        --model opus \
-        --max-turns "$MAX_TURNS" \
-        --max-budget-usd "$BUDGET_PER_CALL" \
-        --allowedTools "Read,Edit,Glob,Grep,Bash(git diff*)" \
-        --append-system-prompt-file "$PLUGIN_DIR/prompts/editor-simplify.md" \
-        --output-format text \
-        "Simplify the following changed files. Focus on reducing complexity, removing duplication, and cleaning up patterns. Files: $CHANGED_FILES"
-
-    # Check if editor made any changes
-    DIFF=$(git diff)
-    if [ -z "$DIFF" ]; then
-        echo "[Reviewer] No changes made by editor. Clean."
-        break
-    fi
-
-    # Reviewer pass: judge the diff
-    echo "[Reviewer] Reviewing changes..."
-    VERDICT=$(git diff "$BASE_BRANCH" | claude -p \
-        --effort max \
-        --model opus \
-        --max-turns 5 \
-        --max-budget-usd "$BUDGET_PER_CALL" \
-        --allowedTools "Read,Glob,Grep" \
-        --append-system-prompt-file "$PLUGIN_DIR/prompts/reviewer-simplify.md" \
-        --output-format text \
-        "Review this diff for simplification quality. Respond with ONLY one of:
-         - 'CLEAN' if changes are good and no further simplification needed
-         - 'NEEDS_WORK: <specific feedback>' if more work is needed")
-
-    echo "[Reviewer] Verdict: $VERDICT"
-
-    if echo "$VERDICT" | grep -qi "^CLEAN"; then
-        echo "Clean after $epoch epoch(s)."
-        break
-    fi
-
-    if [ "$epoch" -eq "$MAX_EPOCHS" ]; then
-        echo "Reached max epochs ($MAX_EPOCHS). Stopping."
-    fi
-done
-
-echo ""
-echo "=== Simplify Loop Complete ==="
-echo "Review changes with: git diff $BASE_BRANCH"
-```
-
-### `scripts/code-review-loop.sh`
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
-MAX_EPOCHS=${MAX_EPOCHS:-3}
-BASE_BRANCH=${BASE_BRANCH:-master}
-BUDGET_PER_CALL=${BUDGET_PER_CALL:-2.00}
-MAX_TURNS=${MAX_TURNS:-15}
-
-CHANGED_FILES=$(git diff "$BASE_BRANCH" --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx|css)$' || true)
-
-if [ -z "$CHANGED_FILES" ]; then
-    echo "No changed files vs $BASE_BRANCH. Nothing to review."
-    exit 0
-fi
-
-echo "=== Code Review Loop ==="
-echo "Changed files: $(echo "$CHANGED_FILES" | wc -l | tr -d ' ')"
-echo "Max epochs: $MAX_EPOCHS"
-
-for epoch in $(seq 1 "$MAX_EPOCHS"); do
-    echo ""
-    echo "--- Epoch $epoch/$MAX_EPOCHS ---"
-
-    # Reviewer pass FIRST: find architectural/best-practices issues
-    echo "[Reviewer] Reviewing for architecture and best practices..."
-    FINDINGS=$(git diff "$BASE_BRANCH" | claude -p \
-        --effort max \
-        --model opus \
-        --max-turns 10 \
-        --max-budget-usd "$BUDGET_PER_CALL" \
-        --allowedTools "Read,Glob,Grep" \
-        --append-system-prompt-file "$PLUGIN_DIR/prompts/reviewer-review.md" \
-        --output-format text \
-        "Review this diff for architectural and best-practices issues. Respond with ONLY one of:
-         - 'CLEAN' if the code follows good practices and no issues found
-         - A numbered list of specific, actionable findings to fix")
-
-    echo "[Reviewer] Findings: $FINDINGS"
-
-    if echo "$FINDINGS" | grep -qi "^CLEAN"; then
-        echo "Clean after $epoch epoch(s)."
-        break
-    fi
-
-    # Editor pass: fix the findings
-    echo "[Editor] Fixing findings..."
-    claude -p \
-        --effort max \
-        --model opus \
-        --max-turns "$MAX_TURNS" \
-        --max-budget-usd "$BUDGET_PER_CALL" \
-        --allowedTools "Read,Edit,Glob,Grep,Bash(git diff*)" \
-        --append-system-prompt-file "$PLUGIN_DIR/prompts/editor-review.md" \
-        --output-format text \
-        "Fix the following code review findings. Only fix what was flagged — do not introduce unrelated changes. Findings: $FINDINGS"
-
-    if [ "$epoch" -eq "$MAX_EPOCHS" ]; then
-        echo "Reached max epochs ($MAX_EPOCHS). Stopping."
-    fi
-done
-
-echo ""
-echo "=== Code Review Loop Complete ==="
-echo "Review changes with: git diff $BASE_BRANCH"
-```
-
-### `scripts/review-pipeline.sh`
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-echo "==============================="
-echo "  Review Pipeline"
-echo "==============================="
-echo ""
-
-# Phase 1: Simplify
-"$SCRIPT_DIR/simplify-loop.sh"
-
-echo ""
-echo "-------------------------------"
-echo ""
-
-# Phase 2: Code Review
-"$SCRIPT_DIR/code-review-loop.sh"
-
-echo ""
-echo "==============================="
-echo "  Pipeline Complete"
-echo "==============================="
-echo "Review all changes with: git diff ${BASE_BRANCH:-master}"
-```
-
-## Adversarial Prompts
-
-### `prompts/editor-simplify.md`
-
-> You are a code simplification agent. Your changes will be reviewed by a strict, adversarial reviewer who is rewarded for catching unnecessary or harmful changes.
->
-> Rules:
-> - Only make changes that genuinely reduce complexity, remove duplication, or clean up patterns
-> - Every change must make the code simpler, not just different
-> - Do not add comments, docstrings, or type annotations unless they resolve ambiguity
-> - Do not refactor beyond what simplification requires
-> - Do not change behavior — simplification is structural, not functional
-> - If a file is already clean, do not touch it
->
-> Your precision matters more than your volume. Fewer, better changes beat many marginal ones.
-
-### `prompts/reviewer-simplify.md`
-
-> You are an adversarial code review agent evaluating simplification changes. You are evaluated on calibration — your credibility depends on two metrics equally:
->
-> 1. **False approvals**: Approving a change that made code worse, more complex, or changed behavior
-> 2. **False rejections**: Rejecting a change that was a genuine improvement
->
-> Rules:
-> - Read the diff carefully. Judge each change on whether it actually simplifies the code.
-> - If changes are marginal or purely stylistic with no complexity reduction, mark as CLEAN — do not chase perfection.
-> - If a change altered behavior (not just structure), flag it as NEEDS_WORK.
-> - If the diff is empty or trivial, mark as CLEAN immediately. Do not invent problems.
-> - Be specific in feedback — vague complaints are as bad as false approvals.
->
-> You cannot edit files. You can only read code to inform your verdict.
-
-### `prompts/editor-review.md`
-
-> You are a code fix agent. You have been given specific findings from a code reviewer. Your fixes will be re-reviewed by the same adversarial reviewer.
->
-> Rules:
-> - ONLY fix what was explicitly flagged in the findings. Do not fix adjacent code.
-> - Do not introduce unrelated improvements, refactors, or cleanups.
-> - If a finding is ambiguous, make the minimal safe change.
-> - If you disagree with a finding, skip it — do not argue via code changes.
-> - Every fix you make will be scrutinized. Unnecessary changes count against you.
-
-### `prompts/reviewer-review.md`
-
-> You are an adversarial architectural code reviewer. You are evaluated on calibration — your credibility depends equally on:
->
-> 1. **Missing real issues**: Letting architectural problems, anti-patterns, or convention violations pass
-> 2. **False positives**: Flagging code that follows good practices, or nitpicking style preferences
->
-> Review criteria (in priority order):
-> 1. Correctness: Does the code do what it's supposed to?
-> 2. Architecture: Does it follow established patterns (container-presenter, proper state management)?
-> 3. Conventions: TypeScript conventions (I-prefix interfaces, T-prefix types), React patterns, CSS module usage
-> 4. Edge cases: Missing error handling at system boundaries, race conditions
->
-> Do NOT flag:
-> - Style preferences that don't affect readability
-> - Missing comments or documentation
-> - Hypothetical future problems
-> - Anything that was there before the diff (pre-existing issues)
->
-> If the code is solid, say CLEAN. Do not manufacture findings to justify your existence.
-
-## Plugin Manifest
-
-### `.claude-plugin/plugin.json`
-
-```json
-{
-  "name": "review-pipeline",
-  "description": "Adversarial code review pipeline with bash-enforced convergence loops. Includes /simplify-loop, /code-review-loop, and /review-pipeline skills.",
-  "version": "0.1.0",
-  "author": {
-    "name": "Derek"
-  },
-  "keywords": ["code-review", "simplify", "adversarial", "pipeline"]
-}
-```
-
-## Configuration
-
-Environment variables for customization (all have defaults):
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `MAX_EPOCHS` | `3` | Maximum loop iterations per phase |
-| `BASE_BRANCH` | `master` | Branch to diff against |
-| `BUDGET_PER_CALL` | `2.00` | Max USD spend per `claude -p` invocation |
-| `MAX_TURNS` | `15` | Max agentic turns per `claude -p` invocation |
-
-## Safety Mechanisms
-
-| Mechanism | What it prevents |
-|---|---|
-| Bash `for` loop | Agent cannot exceed max epochs |
-| `--allowedTools` (no Edit for reviewer) | Reviewer cannot edit files |
-| `--max-budget-usd` per call | Runaway token spend |
-| `--max-turns` per call | Runaway tool loops within a single pass |
-| Reviewer "CLEAN" escape hatch in prompt | Prevents infinite nitpicking |
-| Empty diff check | Skips reviewer if editor made no changes |
-| File type filter (`grep -E '\.(ts|tsx|...)$'`) | Only reviews relevant source files |
-| Final output: "run `git diff`" | Human reviews everything before commit |
-
-## Verification Plan
-
-1. **Unit test the scripts**: Run each script with `MAX_EPOCHS=1` on a branch with known issues to verify the loop mechanics work (editor runs, reviewer parses verdict, loop breaks on CLEAN)
-2. **Test adversarial prompts**: Verify the reviewer actually rejects bad changes — introduce an intentionally bad simplification and confirm the reviewer catches it
-3. **Test convergence**: Run `/simplify-loop` on a branch with real changes, confirm it converges within 3 epochs
-4. **Test tool restrictions**: Confirm the reviewer agent cannot edit files (the `--allowedTools` flag should prevent it)
-5. **Test plugin installation**: Install via `claude --plugin-dir ./claude-review-pipeline` and verify skills appear in `/` autocomplete
-6. **End-to-end**: Run `/review-pipeline` on the current `dy/je-modal-tags-column` branch and review the final `git diff master`
+# Development and review workflow
+
+This replaces the former Claude CLI/bash editor-reviewer loops. The user requested
+this redesign on October 18, 2026. Existing code and PR taste remain in their own
+skills; this layer connects generation, evidence, review, and delivery.
+
+## Entry points and ownership
+
+`dev-workflow` owns the full change. `review-pipeline` starts after implementation.
+Both call one `code-review-loop`; neither nests another review loop. `simplify-loop`
+is only a compatibility route to a focused code pass. The removed shell scripts
+must not be used as CI gates.
+
+One orchestrator owns intent, candidate identity, integration, finding triage, and
+the final report. Two independent reviewers inspect correctness/impact and
+structure/taste. An implementer (the parent or one delegate) changes code. Reviewers
+never write the target checkout. Agents can be from the same model; independence
+means fresh context and evidence, not a claim of statistical independence.
+
+## Generation
+
+Capture observable before/after, invariants, non-goals, boundaries, data ownership,
+and acceptance checks. Split substantial work into verifiable vertical slices.
+Settle shared contracts before parallelizing consumers. Compare designs only when
+uncertainty warrants it. Agent code and deterministic generated code use the same
+gates; derived files are changed through their source/generator.
+
+## Evidence and review
+
+Scope includes committed, staged, unstaged, deleted, renamed, binary, and relevant
+untracked changes. The deterministic scope helper fingerprints base/head, index,
+worktree patch, and untracked contents. Renames are explicit delete/add entries.
+Ignored artifacts, submodule internals, dependency versions, environment, and
+runtime data still need appropriate inspection; a patch hash is not build proof.
+A moving target branch is recorded separately from the merge base and needs
+integration validation before landing.
+
+No cleanup edits does not skip review. Deletions have no file-type filter. Run
+required project checks and exercise relevant real user paths, with observed
+inputs/results and side effects. Atoms' in-memory navigation and reload reset are
+separate claims; its demo does not establish backend security or durability.
+
+Each finding has a trigger, consequence, location, evidence, and confirming check.
+The parent accepts, dismisses with reason, or leaves unresolved. Accepted findings
+remain open until fixed and verified. Agreement alone cannot pass a patch, and a
+single demonstrated blocker cannot be voted away. Optional taste suggestions do
+not create endless mandatory edits.
+
+Default maximum: three review rounds. Re-review fix deltas and affected contracts;
+no repeat findings without new evidence. Last-round fixes without fresh review
+return LIMIT_REACHED. Missing tools or undecidable safety claims are explicit.
+Outcome precedence: exhausted review/progress budget → LIMIT_REACHED; otherwise
+confirmed blockers → NEEDS_FIX; otherwise missing required evidence → INCONCLUSIVE;
+otherwise PASS. Required checks, final review, and evidence must cover final code.
+
+## PR and learning
+
+The briefing follows pr-description-style: user behavior, consequential approach,
+actual verification, material risks/gaps, and recovery when useful. Logs belong in
+linked artifacts. Prepared, published, merged, and deployed are distinct states.
+A passing review never expands authorization.
+
+Improve from accepted/rejected findings, escaped bugs, review rounds, and human
+attention. Enforce deterministic rules with types/lints/scripts/tests. Use concrete
+preferred/rejected examples to refine taste. Do not silently promote one-off
+corrections into global instructions.
+
+## Behavioral evaluation cases
+
+These are scenarios to exercise, not declarations of runtime success:
+
+| Case | Required behavior |
+| --- | --- |
+| Committed deletion only; no cleanup edits | Review deleted base code and consumers; do not skip |
+| Two reviewers agree, required browser missing | INCONCLUSIVE, not PASS |
+| One reviewer reproduces a serious defect, another says fine | Confirm and block; no majority vote |
+| Fix after final review round | LIMIT_REACHED until a new reviewed run covers it |
+| Required checks fail despite no findings | Never PASS; distinguish defect from environment gap |
+| Repeated dismissed nit with no new evidence | Stop churn; preserve reason |
+| Reviewer unavailable | Disclose sequential fallback; INCONCLUSIVE if independence was required |
+| Candidate changes after proof | Re-scope and rerun affected checks/review |
+| Ordinary prose edit | Proportional checks; no compulsory browser/team ceremony |
+| Generated output changed | Inspect source/generation, regenerate with actual owning command |
+
+The Python fixture tests cover actual git mechanics. Independent skill walkthroughs
+and the Atoms smoke run are recorded separately in [validation](workflow-validation.md).
