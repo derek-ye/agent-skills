@@ -54,6 +54,10 @@ run simplify-loop or review-pipeline; their stages are already composed here.
 
 ## 3. Prove the result
 
+The parent workflow owns final verification and PR preparation. Reuse valid
+evidence from the code pass; run missing checks and rerun checks invalidated by
+subsequent edits.
+
 Discover required checks from configuration and CI. Use the project's verification
 recipe; for Atoms read [verify-atoms](../verify-atoms/SKILL.md). For another project
 use [create-project-verification](../create-project-verification/SKILL.md) when a

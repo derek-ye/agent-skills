@@ -15,7 +15,7 @@ model family or task API is required.
 
 For a small change or unavailable delegation, use both lenses sequentially and
 disclose the lack of independence. If independence is an explicit acceptance
-requirement and unavailable, report INCONCLUSIVE.
+requirement and unavailable, report BLOCKED.
 
 ## Review boundary
 
@@ -35,7 +35,7 @@ Record base SHA, candidate HEAD, and worktree identity using
 `python3 <dev-workflow>/scripts/review_scope.py --repo <checkout> --base <target>`
 or equivalent git inspection. Review committed changes even with an empty
 unstaged diff. No cleanup edits never means skip review. A truly empty scope is
-PASS with "no changes"; a nonempty scope still needs its required checks. Inspect
+PASS with "no changes"; a nonempty scope still needs substantive review. Inspect
 binary artifacts appropriately or record the inspection gap.
 
 ## Independent lenses
@@ -78,32 +78,47 @@ pass focus on new edits; reopen broad scope only for a concrete reason such as a
 changed shared contract. Do not repeat dismissed findings without new evidence or
 keep finding unrelated pre-existing bugs.
 
-Use one writer at a time. Inspect delegated changes and run affected required
-checks against the final state. Last-round fixes are not automatically reviewed:
+Use one writer at a time. Inspect delegated changes and run relevant feasible
+checks against the final state; disclose checks not run. Last-round fixes are not automatically reviewed:
 if no review budget remains, report LIMIT_REACHED. Stop earlier for no meaningful
 progress, repeated unchanged findings, missing tools, or a major unresolved choice.
 Never keep agents running just to obtain unanimity.
 
 ## Outcomes
 
-Use exactly one outcome tied to the final candidate identity. If several apply,
-choose LIMIT_REACHED for exhausted review/progress budget, otherwise NEEDS_FIX
-for confirmed blockers, otherwise INCONCLUSIVE for missing required evidence,
-otherwise PASS:
-- **PASS:** no unresolved blocking findings; required checks and acceptance
-  evidence pass; final edits reviewed. List nonblocking notes separately.
-- **NEEDS_FIX:** a confirmed blocking defect remains and is not fixed in scope.
-- **INCONCLUSIVE:** a required check/capability/product decision or material safety
-  assumption is unavailable or unproven.
-- **LIMIT_REACHED:** review/fix work remains when the round or progress limit ends
-  automation. Include confirmed blockers and verification gaps explicitly.
+The outcome assesses the reviewed code, separately from merge or release readiness.
+Missing acceptance evidence does not by itself block PASS. Unrun deterministic
+checks, manual/browser QA, Chromatic, deployment confirmation, stale required-commit
+checks, and merge conflicts are follow-ups unless the user explicitly makes them
+conditions of this review. Still run useful feasible checks and report actual
+results. A failing check that demonstrates a candidate defect blocks; unavailable
+checks or infrastructure failures do not establish a defect. A published-head PASS
+does not cover a future rebase or conflict resolution; review that delta separately.
 
-Report outcome, scope identity, rounds used, independence, concise before/after,
-findings/dispositions, actual checks/evidence, material gaps, and next action. Keep
-raw logs in local artifacts. Include the test-value assessment, distinguishing
-PR-added tests from the existing suite. For each material finding, documented
-limitation, or verification gap, include in the final chat handoff one or two
-sentences to explain current
-behavior and impact, then the proposed change or check and expected outcome;
-state when no change is warranted and distinguish proposed from applied/verified.
+Use exactly one outcome tied to the final candidate identity. If several apply,
+choose LIMIT_REACHED for exhausted substantive review/fix budget, otherwise NEEDS_FIX
+for confirmed blockers, otherwise BLOCKED when substantive review cannot be
+completed, otherwise PASS:
+- **PASS:** substantive review completed, no unresolved blocking findings, and final
+  edits reviewed. List unperformed checks, acceptance follow-ups, and nonblocking
+  notes separately; do not claim unverified behavior works.
+- **NEEDS_FIX:** a confirmed blocking defect remains and is not fixed in scope.
+- **BLOCKED:** the candidate cannot be inspected, a concrete suspected blocking
+  defect cannot be adjudicated with available evidence, or an explicit user-required
+  review condition cannot be met. Name the specific obstacle. Do not use this for
+  routine acceptance or merge-readiness follow-ups.
+- **LIMIT_REACHED:** substantive review/fix work remains when the round or progress
+  limit ends automation. Missing routine acceptance checks alone do not exhaust
+  the review budget.
+
+Default to a short chat handoff: **outcome → behavior changed → evidence →
+unresolved decisions/next action**. Identify the reviewed candidate and disclose
+review independence. Keep round counts, the full findings/disposition ledger,
+test-value assessment (PR-added versus existing tests), and raw logs in a linked
+local review artifact when they would crowd the handoff. A small review can keep
+all of its evidence inline without creating a separate document.
+
+Keep material findings and verification gaps visible in chat: briefly explain
+current behavior and impact, then the proposed change or check and expected
+outcome. Distinguish proposals from applied and verified changes.
 PASS never authorizes publishing, merging, or deploys.

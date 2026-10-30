@@ -52,20 +52,23 @@ that the skill ran.
 
 ## Behavior
 
+- Treat the pre-cleanup candidate as the behavior baseline: preserve its intended
+  behavior, including intentional feature changes relative to the branch base.
+  Report discovered product defects separately from cleanup; fix them only within
+  the authorized task scope.
 - Preserve authorization, audit handling, and data integrity.
 - Surface unresolved behavior changes rather than silently making
   product decisions.
 - Stay within the task's scope.
 
-## PR description
-
-- Use [pr-description-style](../pr-description-style/SKILL.md) to prepare or
-  refresh the PR description after the code pass, reflecting the final changes
-  and verification. Follow existing authorization before publishing updates.
-
 ## Verification and delivery
 
-- Run checks appropriate to the edits.
+- When invoked by a parent workflow, return the cleanup delta, any checks already
+  run, and remaining verification needs. The parent owns final verification and
+  PR-description preparation; do not duplicate those stages here.
+- When standalone, run checks appropriate to the edits. If PR preparation is
+  part of the request, use [pr-description-style](../pr-description-style/SKILL.md)
+  after verification. Follow existing authorization before publishing updates.
 - Don't commit or push unless authorized.
 - Briefly report changes and verification, or say no worthwhile
   changes were found.

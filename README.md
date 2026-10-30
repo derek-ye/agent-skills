@@ -53,6 +53,8 @@ this repository's skill collection to clients supporting that plugin format.
   behavior, impact, edge cases and unintended effects; also supports event walkthroughs.
 
 - `create-skill`: interview and codify technical workflows with evidence and review.
+- `agent-orchestration`: delegation, ownership, checkpoints, verification, and follow-through.
+- `guided-pr-review`: live PR walkthroughs ordered by risk, with unfamiliar patterns explained first.
 - `derek-code-pass`: scoped structure, comment, and behavioral-test preferences.
 - `derek-design-preferences`: UI copy and typography preferences.
 - `pr-description-style`: concise user context, matched screenshots, and evidence.

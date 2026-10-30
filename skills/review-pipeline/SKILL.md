@@ -10,7 +10,8 @@ establish intended behavior, target base, full patch, and required checks.
 
 1. Apply [derek-code-pass](../derek-code-pass/SKILL.md) for worthwhile scoped
    improvements. No cleanup edits is valid; continue with review anyway.
-2. Run required project checks and its verification recipe. For Atoms use
+2. Own final verification: reuse checks that still cover the current candidate;
+   rerun those invalidated by edits and run missing required checks. For Atoms use
    [verify-atoms](../verify-atoms/SKILL.md). For other projects discover commands
    from configuration/CI and actual entry points; use
    [create-project-verification](../create-project-verification/SKILL.md) if a
