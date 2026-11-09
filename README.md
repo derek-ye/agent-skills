@@ -61,6 +61,7 @@ this repository's skill collection to clients supporting that plugin format.
 - `work-priority-summary`: work inventory, dependencies, and attention recommendations.
 - `update-weekly-todos`: maintain concise Obsidian action lists.
 - `ponytail`: upstream minimal-code skill; provenance and license in its directory.
+- `socratic-tutor`: upstream Jane Street Socratic tutoring skill; provenance and license in its directory.
 - `test-audit`: imported OpenClaw testing workflow; requires its project-specific
   tools/skills and is not a generic prerequisite for every project.
 - `principle-test-behavior-not-implementation`: imported pstack testing principle;
