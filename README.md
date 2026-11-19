@@ -66,6 +66,8 @@ this repository's skill collection to clients supporting that plugin format.
   tools/skills and is not a generic prerequisite for every project.
 - `principle-test-behavior-not-implementation`: imported pstack testing principle;
   provenance and license in its directory.
+- `trim-tests`: cut a PR's tests (or a whole suite) by about 80% of lines while
+  keeping about 80% of core coverage, measured before and after.
 
 ## Checks
 
