@@ -50,7 +50,7 @@ all delegated diffs and integrate them yourself.
 Use [derek-code-pass](../derek-code-pass/SKILL.md) on changed code. For UI choices
 also read [derek-design-preferences](../derek-design-preferences/SKILL.md).
 Use project formatters and linters for mechanical conventions. Do not additionally
-run simplify-loop or review-pipeline; their stages are already composed here.
+run review-pipeline; its stages are already composed here.
 
 ## 3. Prove the result
 

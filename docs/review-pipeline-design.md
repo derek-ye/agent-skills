@@ -7,8 +7,7 @@ skills; this layer connects generation, evidence, review, and delivery.
 ## Entry points and ownership
 
 `dev-workflow` owns the full change. `review-pipeline` starts after implementation.
-Both call one `code-review-loop`; neither nests another review loop. `simplify-loop`
-is only a compatibility route to a focused code pass. The removed shell scripts
+Both call one `code-review-loop`; neither nests another review loop. The removed shell scripts
 must not be used as CI gates.
 
 One orchestrator owns intent, candidate identity, integration, finding triage, and

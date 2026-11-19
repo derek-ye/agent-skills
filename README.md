@@ -26,18 +26,21 @@ the current agent runtime; it does not spawn Claude CLI subprocesses. If indepen
 review is unavailable, it reports that limitation instead of claiming parity.
 
 The old `review-pipeline/scripts/*.sh` and prompts have been removed. Invoke a skill
-in your agent rather than running those paths. `simplify-loop` remains a compatibility
-skill for a single focused `derek-code-pass`; it no longer runs a shell loop.
+in your agent rather than running those paths.
 See [workflow design](docs/review-pipeline-design.md) for roles and evaluation.
 
 ## Installation
 
-For Codex, link each wanted skill directory under `~/.agents/skills`; for Claude
-Code use `~/.claude/skills`. From this repo, replacing `skill-name`:
+Link every skill directory under `~/.agents/skills` (Codex) and
+`~/.claude/skills` (Claude Code). From this repo; rerun after adding a skill:
 
 ```sh
-mkdir -p "$HOME/.agents/skills"
-ln -s "$PWD/skills/skill-name" "$HOME/.agents/skills/skill-name"
+for dir in "$HOME/.agents/skills" "$HOME/.claude/skills"; do
+  mkdir -p "$dir"
+  for skill in "$PWD"/skills/*/; do
+    [ -e "$dir/$(basename "$skill")" ] || ln -s "${skill%/}" "$dir/$(basename "$skill")"
+  done
+done
 ```
 
 Inspect existing destinations first and preserve independent edits. Keep built-in
